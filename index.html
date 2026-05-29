@@ -1,0 +1,522 @@
+<!DOCTYPE html> 
+<html lang="pt-BR"> 
+<head> 
+  <base target="_top"> 
+  <meta charset="utf-8"> 
+  <meta name="theme-color" content="#020617"> 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"> 
+  <title>Shape Tracker 2026</title> 
+  
+  <link rel="manifest" href="manifest.json">
+  
+  <script src="https://cdn.tailwindcss.com"></script> 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> 
+  <script src="https://unpkg.com/lucide@latest"></script> 
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script> 
+  
+  <script> 
+    tailwind.config = { theme: { extend: { colors: { slate: { 850: '#1e293b', 950: '#020617' }, lime: { 450: '#84cc16' }, sky: { 400: '#38bdf8' } }, fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['ui-monospace', 'monospace'] }, boxShadow: { 'neon': '0 0 10px rgba(132, 204, 22, 0.3)' } } } } 
+  </script> 
+  
+  <style> 
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap'); 
+    body { background-color: #020617; color: #f8fafc; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; } 
+    .no-scrollbar::-webkit-scrollbar { display: none; } 
+    .loader { border-top-color: #84cc16; animation: spinner 1.5s linear infinite; } 
+    @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } } 
+    .weight-input-player { background: #020617; border: 1px solid #1e293b; border-radius: 6px; text-align: center; color: #fff; font-weight: bold; width: 70px; padding: 8px 0; font-family: 'ui-monospace', monospace; transition: all 0.2s; } 
+    .weight-input-player:focus { border-color: #84cc16; box-shadow: 0 0 10px rgba(132, 204, 22, 0.3); outline: none; } 
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom); } 
+    .pt-safe { padding-top: env(safe-area-inset-top); } 
+    .bg-grid { background-image: linear-gradient(to right, #1e293b 1px, transparent 1px), linear-gradient(to bottom, #1e293b 1px, transparent 1px); background-size: 40px 40px; opacity: 0.1; } 
+    .row-completed { background-color: rgba(132, 204, 22, 0.15) !important; border-color: #84cc16 !important; } 
+  </style> 
+</head> 
+
+<body class="pb-24 pt-safe relative"> 
+  <div class="fixed inset-0 bg-grid pointer-events-none z-0"></div> 
+  <header class="fixed top-0 w-full z-40 bg-slate-950/90 backdrop-blur-md border-b border-slate-850 transition-all duration-300"> 
+    <div class="flex justify-between items-center max-w-2xl mx-auto px-4 py-4"> 
+      <div><h1 class="text-xl font-black italic tracking-tighter text-white flex items-center font-sans">SHAPE<span class="text-lime-450">2026</span></h1></div> 
+      <div id="loading-indicator" class="hidden"><div class="loader ease-linear rounded-full border-2 border-t-2 border-slate-800 h-5 w-5"></div></div> 
+    </div> 
+  </header> 
+  
+  <div class="h-20"></div> 
+  
+  <main id="app" class="max-w-2xl mx-auto p-4 space-y-6 relative z-10 min-h-screen"> 
+    <div id="view-player" class="view-section animate-[fadeIn_0.3s_ease-out]"> 
+      <div class="flex gap-3 overflow-x-auto pb-4 no-scrollbar day-selector-container"></div> 
+      <div class="mb-6 mt-2"> 
+        <h2 id="player-day-title" class="text-3xl font-black text-white uppercase tracking-tight italic"></h2> 
+      </div> 
+      <div id="player-list" class="space-y-5 pb-10"><div class="text-center py-20 text-slate-600">Conectando...</div></div> 
+    </div> 
+
+    <div id="view-calendar" class="view-section hidden animate-[fadeIn_0.3s_ease-out]"> 
+      <h2 class="text-xl font-bold mb-6 flex items-center gap-2 text-white"><i data-lucide="calendar" class="text-lime-450"></i> Frequência</h2> 
+      <div class="bg-slate-850 p-6 rounded-2xl border border-slate-800 shadow-xl"> 
+        <div id="month-header" class="text-center font-bold text-lime-450 mb-4 uppercase text-xs tracking-widest"></div> 
+        <div class="grid grid-cols-7 gap-2 text-center text-[10px] font-black text-slate-500 mb-2"> 
+          <div>DOM</div><div>SEG</div><div>TER</div><div>QUA</div><div>QUI</div><div>SEX</div><div>SÁB</div> 
+        </div> 
+        <div id="calendar-days" class="grid grid-cols-7 gap-2"></div> 
+      </div> 
+    </div>
+
+    <div id="view-progress" class="view-section hidden animate-[fadeIn_0.3s_ease-out]"> 
+      <h2 class="text-xl font-bold mb-6 flex items-center gap-2 text-white"><i data-lucide="bar-chart-2" class="text-lime-450"></i> Estatísticas</h2>
+      
+      <div class="bg-slate-850 p-5 rounded-xl border border-slate-800 shadow-xl mb-6">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Lançar Nova Avaliação</h3>
+        <div class="flex gap-4">
+           <div class="flex-1">
+              <label class="text-[10px] text-slate-500 uppercase font-bold">Peso (kg)</label>
+              <input type="number" id="input-new-weight" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-lg p-3 text-white font-black text-center shadow-inner" placeholder="Ex: 80.5">
+           </div>
+           <div class="flex-1">
+              <label class="text-[10px] text-slate-500 uppercase font-bold">% Gordura</label>
+              <input type="number" id="input-new-fat" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-lg p-3 text-white font-black text-center shadow-inner" placeholder="Ex: 15.2">
+           </div>
+        </div>
+        <button onclick="enviarMedidas()" class="w-full mt-4 py-3 bg-slate-800 text-slate-300 rounded-lg font-bold text-sm hover:bg-lime-450 hover:text-slate-950 transition-colors border border-slate-700 hover:border-lime-450 shadow-md">
+           <i data-lucide="save" class="w-4 h-4 inline-block mr-1 align-text-bottom"></i> SALVAR MEDIDAS
+        </button>
+      </div>
+
+      <div class="flex gap-4 mb-6">
+          <div class="flex-1 bg-slate-850 p-4 rounded-xl border border-slate-800 shadow-xl text-center">
+              <div class="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">Último Peso</div>
+              <div class="text-2xl font-black text-white" id="kpi-weight">-- kg</div>
+          </div>
+          <div class="flex-1 bg-slate-850 p-4 rounded-xl border border-slate-800 shadow-xl text-center">
+              <div class="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">% Gordura</div>
+              <div class="text-2xl font-black text-white" id="kpi-fat">-- %</div>
+          </div>
+      </div>
+      <div class="bg-slate-850 p-4 rounded-xl border border-slate-850 shadow-lg mb-6"><canvas id="evolutionChart" height="250"></canvas></div> 
+      <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 mt-8">Histórico de Avaliações</h3>
+      <div id="history-list" class="space-y-2"></div>
+    </div> 
+  </main> 
+
+  <nav class="fixed bottom-0 w-full bg-slate-950/90 backdrop-blur-lg border-t border-slate-850 pb-safe z-40"> 
+    <div class="flex justify-around items-center h-16 max-w-2xl mx-auto px-2"> 
+      <button onclick="switchTab('player')" id="nav-player" class="nav-btn text-lime-450 flex flex-col items-center gap-1 w-20"><i data-lucide="play" class="w-6 h-6"></i></button> 
+      <button onclick="switchTab('calendar')" id="nav-calendar" class="nav-btn text-slate-500 flex flex-col items-center gap-1 w-20"><i data-lucide="calendar" class="w-6 h-6"></i></button> 
+      <button onclick="switchTab('progress')" id="nav-progress" class="nav-btn text-slate-500 flex flex-col items-center gap-1 w-20"><i data-lucide="bar-chart-2" class="w-6 h-6"></i></button> 
+    </div> 
+  </nav> 
+
+  <div id="timer-modal" class="hidden fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center"> 
+    <div id="timer-title" class="text-lime-450 text-xs font-bold uppercase tracking-[0.3em] mb-12 animate-pulse">Descanso</div> 
+    <div class="relative mb-16 flex justify-center items-center"> 
+      <div class="absolute w-72 h-72 rounded-full border-4 border-slate-850"></div> 
+      <div id="timer-circle" class="absolute w-72 h-72 rounded-full border-t-4 border-lime-450 animate-spin duration-[3s]"></div> 
+      <div id="timer-display" class="text-[6rem] font-black text-white font-mono tracking-tighter">00:00</div> 
+    </div> 
+    <button onclick="handleTimerComplete()" class="w-full max-w-xs py-5 bg-lime-450 text-slate-950 rounded-lg font-black text-lg shadow-neon active:scale-95 transition-all"> 
+      <i data-lucide="skip-forward" class="w-6 h-6"></i> PULAR
+    </button> 
+  </div> 
+
+  <script> 
+    // ==========================================
+    const API_URL = "https://script.google.com/macros/s/AKfycbyjIDegEQX2mg-frIEAkky2C5TYIM6LPQRFB-TeocfneEUo6uX8zREKb3oGhHNrOlUWjg/exec"; 
+    // ==========================================
+    
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js'); }
+
+    let localData = JSON.parse(localStorage.getItem('shapeTrackerDB')) || {};
+    
+    // SISTEMA DE TROCA DE DIA (LIMPA AS BOLINHAS VERDES SE FOR UM DIA NOVO)
+    let todayDateStr = new Date().toLocaleDateString('pt-BR');
+    let loadedProgress = localData.workoutProgress || {};
+    if (localData.progressDate && localData.progressDate !== todayDateStr) {
+        loadedProgress = {}; 
+    }
+
+    let state = { 
+      exercises: [], measurements: [], fullHistory: [], 
+      selectedDay: localData.selectedDay || 'Treino 1', 
+      workoutProgress: loadedProgress, 
+      pendingLogs: localData.pendingLogs || [],         
+      lastWeights: localData.lastWeights || {},         
+      lastDates: localData.lastDates || {}              
+    }; 
+    
+    function saveLocal() {
+      localStorage.setItem('shapeTrackerDB', JSON.stringify({
+        selectedDay: state.selectedDay, 
+        workoutProgress: state.workoutProgress,
+        progressDate: new Date().toLocaleDateString('pt-BR'),
+        pendingLogs: state.pendingLogs, 
+        lastWeights: state.lastWeights, 
+        lastDates: state.lastDates
+      }));
+    }
+
+    const days = ['Treino 1', 'Treino 2', 'Treino 3', 'Treino 4', 'Treino 5']; 
+
+    let audioCtx;
+    function initAudio() {
+      if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if(audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function playBeep(type) {
+      try {
+        initAudio();
+        const o = audioCtx.createOscillator();
+        o.connect(audioCtx.destination); o.frequency.value = type === 'start' ? 880 : 440;
+        o.start(); o.stop(audioCtx.currentTime + 0.5);
+      } catch(e) {}
+    }
+
+    const workerCode = `
+      let timer = null;
+      self.onmessage = function(e) {
+        if(e.data.cmd === 'start') {
+          let left = e.data.sec;
+          timer = setInterval(() => {
+            left--; self.postMessage({tick: left});
+            if(left <= 0) { clearInterval(timer); self.postMessage({done: true}); }
+          }, 1000);
+        } else if(e.data.cmd === 'stop') { clearInterval(timer); }
+      }
+    `;
+    const timerWorker = new Worker(URL.createObjectURL(new Blob([workerCode], {type: 'application/javascript'})));
+
+    timerWorker.onmessage = function(e) {
+      if(e.data.tick !== undefined) { document.getElementById('timer-display').innerText = formatTime(e.data.tick); }
+      if(e.data.done) { handleTimerComplete(); }
+    };
+
+    window.onload = function() { lucide.createIcons(); loadData(); }; 
+
+    // === LÓGICA DE AVANÇO AUTOMÁTICO DE TREINO ===
+    function determineNextWorkout() {
+        if (!state.fullHistory || state.fullHistory.length === 0) return 'Treino 1';
+        
+        // Pega o último treino executado
+        const lastLog = state.fullHistory[state.fullHistory.length - 1];
+        const lastWorkout = lastLog.workout; 
+        const lastIdx = days.indexOf(lastWorkout);
+        
+        if (lastIdx === -1) return 'Treino 1';
+        const nextIdx = lastIdx + 1;
+        return nextIdx < days.length ? days[nextIdx] : days; // Se passou do Treino 5, volta pro 1
+    }
+
+    function loadData() { 
+      setLoading(true); 
+      fetch(API_URL)
+        .then(res => res.json())
+        .then(data => { 
+          state.exercises = data.exercises || []; 
+          state.fullHistory = data.history || []; 
+          state.measurements = data.measurements || []; 
+          
+          // AUTO-AVANÇO: Se o dia virou (bolinhas verdes limpas), calcula qual aba deve abrir agora!
+          if (Object.keys(state.workoutProgress).length === 0) {
+              state.selectedDay = determineNextWorkout();
+              saveLocal();
+          }
+
+          // AUTO-SAVE: Se você fechou o app ontem sem clicar em "Concluir", ele envia agora
+          if (state.pendingLogs.length > 0) {
+              sincronizarSilenciosamente();
+          }
+
+          renderAllViews(); renderKPIs(); renderChart(); renderHistory(); 
+          setLoading(false); 
+        }).catch(err => { 
+          // Se estiver sem internet, ainda usa a lógica de avanço com os dados locais
+          if (Object.keys(state.workoutProgress).length === 0) {
+              state.selectedDay = determineNextWorkout();
+              saveLocal();
+          }
+          alert('Offline. Carregando dados salvos...'); 
+          setLoading(false); renderAllViews(); 
+        }); 
+    } 
+
+    // === SISTEMA ANTI-ESQUECIMENTO (SINCRONIZAÇÃO EM SEGUNDO PLANO) ===
+    function sincronizarSilenciosamente() {
+      if(!state.pendingLogs || state.pendingLogs.length === 0) return;
+
+      let logsToSync = [...state.pendingLogs];
+      logsToSync.forEach(log => {
+         log.weightsArray = state.lastWeights[log.exId] || [];
+      });
+
+      // O 'keepalive' garante que o navegador envie o dado mesmo que você feche a aba!
+      fetch(API_URL, { 
+          method: 'POST', 
+          body: JSON.stringify({logs: logsToSync}),
+          keepalive: true 
+      })
+      .then(res => res.json())
+      .then((res) => {
+        if(res.status !== 'erro') {
+          // Remove os itens que foram enviados com sucesso da fila
+          state.pendingLogs = state.pendingLogs.filter(l => !logsToSync.includes(l));
+          saveLocal();
+        }
+      }).catch(err => {});
+    }
+
+    // Este gatilho é disparado quando você bloqueia a tela do celular ou muda de App
+    document.addEventListener("visibilitychange", function() {
+        if (document.visibilityState === 'hidden') {
+            sincronizarSilenciosamente();
+        }
+    });
+    // ==============================================================
+
+    function renderAllViews() { renderDaySelector(); renderPlayer(); renderCalendar(); } 
+
+    function switchTab(tab) { 
+      document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden')); 
+      document.getElementById(`view-${tab}`).classList.remove('hidden'); 
+      document.querySelectorAll('.nav-btn').forEach(el => el.classList.replace('text-lime-450', 'text-slate-500')); 
+      document.getElementById(`nav-${tab}`).classList.replace('text-slate-500', 'text-lime-450'); 
+      if(tab === 'calendar') renderCalendar();
+      lucide.createIcons(); 
+    } 
+
+    function renderDaySelector() { 
+      const html = days.map(day => { 
+        const css = state.selectedDay === day ? 'bg-lime-450 text-slate-950 font-bold shadow-neon' : 'bg-slate-850 text-slate-400'; 
+        return `<button onclick="selectDay('${day}')" class="px-5 py-3 rounded text-sm ${css}">${day}</button>`; 
+      }).join(''); 
+      document.querySelectorAll('.day-selector-container').forEach(el => el.innerHTML = html); 
+    } 
+
+    function selectDay(day) { state.selectedDay = day; saveLocal(); renderAllViews(); } 
+
+    function updateWeight(exId, index, val) { 
+        if(!state.lastWeights[exId] || !Array.isArray(state.lastWeights[exId])) state.lastWeights[exId] = [];
+        state.lastWeights[exId][index] = val; 
+        saveLocal(); 
+    }
+
+    function parseArray(val, count, def) {
+      if (!val) return Array(count).fill(def);
+      try {
+        let p = JSON.parse(val);
+        if (!Array.isArray(p)) p = [p];
+        let res = [];
+        for(let i=0; i<count; i++) res.push(p[i] !== undefined ? p[i] : (p || def));
+        return res;
+      } catch(e) {
+        let match = String(val).match(/\d+/g);
+        let arr = match ? match.map(Number) : [val];
+        let res = [];
+        for(let i=0; i<count; i++) res.push(arr[i] !== undefined ? arr[i] : (arr || def));
+        return res;
+      }
+    }
+
+    function renderPlayer() { 
+      const container = document.getElementById('player-list'); 
+      const filtered = state.exercises.filter(e => e.day && e.day.trim() === state.selectedDay); 
+      document.getElementById('player-day-title').innerHTML = state.selectedDay; 
+      
+      if(filtered.length === 0) { 
+        container.innerHTML = `<div class="text-center py-10 text-slate-400 border border-dashed border-slate-800 rounded-xl px-4"><h3 class="font-bold text-white mb-2">Nenhum exercício encontrado.</h3></div>`; 
+        return; 
+      } 
+
+      container.innerHTML = filtered.map(ex => { 
+        const sCount = parseInt(ex.sets) || 1;
+        const repsArr = parseArray(ex.reps, sCount, 10);
+        const restsArr = parseArray(ex.rest, sCount, 60);
+        const weightArr = parseArray(ex.weight, sCount, 0);
+
+        if (!state.lastWeights[ex.id] || !Array.isArray(state.lastWeights[ex.id])) {
+            state.lastWeights[ex.id] = [...weightArr];
+        }
+
+        let rows = ''; 
+        for(let i=0; i<sCount; i++) { 
+          const setKey = `${ex.id}-${i}`; 
+          const isDone = state.workoutProgress[setKey]; 
+          const displayWeight = state.lastWeights[ex.id][i] !== undefined ? state.lastWeights[ex.id][i] : weightArr[i];
+
+          rows += `<div id="row-${setKey}" class="grid grid-cols-[20px_1fr_auto_auto] gap-4 items-center py-3 border-b border-slate-850 p-2 rounded-lg ${isDone ? 'row-completed opacity-50' : ''}"> 
+            <span class="text-xs font-mono text-slate-500">${i+1}</span> 
+            <span class="text-sm font-bold text-white w-12 text-center">${repsArr[i]} <span class="text-[9px] text-slate-500 uppercase block leading-none">REPS</span></span> 
+            <input type="number" onchange="updateWeight('${ex.id}', ${i}, this.value)" value="${displayWeight}" class="weight-input-player"> 
+            <button onclick="handleAction('${setKey}', ${restsArr[i]}, 'DESCANSO', '#84cc16', '${ex.id}', '${ex.name}')" class="h-10 w-12 bg-slate-900 border border-slate-700 text-slate-400 rounded hover:border-lime-450"><i data-lucide="check" class="mx-auto"></i></button> 
+          </div>`; 
+        } 
+        
+        const historyCountHTML = ex.historyCount ? `<span class="text-lime-450 text-[10px] ml-2 font-mono bg-lime-450/10 px-2 py-0.5 rounded-full">🔥 ${ex.historyCount}x</span>` : '';
+        const lastDateHTML = state.lastDates[ex.id] ? `<span class="text-sky-400 text-[10px] ml-2 font-mono uppercase tracking-widest">Último: ${state.lastDates[ex.id]}</span>` : '';
+        
+        return `<div class="bg-slate-850 border border-slate-800 rounded-xl p-4 mb-4 shadow-xl"> 
+          <div class="flex items-center mb-4">
+              <h3 class="font-black text-white text-lg flex flex-wrap items-center">${ex.name} ${historyCountHTML} ${lastDateHTML}</h3>
+          </div> 
+          <div>${rows}</div> 
+        </div>`; 
+      }).join('') + `<button onclick="finalizarTreino()" class="w-full py-4 bg-lime-450 text-slate-950 font-black rounded-xl mt-6 uppercase text-sm shadow-neon">Concluir Treino</button>`; 
+      lucide.createIcons(); 
+    } 
+
+    function renderCalendar() { 
+      const today = new Date(); 
+      const year = today.getFullYear(), month = today.getMonth(); 
+      
+      document.getElementById('month-header').innerText = today.toLocaleString('pt-BR', { month: 'long', year: 'numeric' }); 
+      let html = ""; 
+      const first = new Date(year, month, 1).getDay(); 
+      const daysInMonth = new Date(year, month + 1, 0).getDate(); 
+      
+      for(let i=0; i<first; i++) html += "<div></div>"; 
+      for(let d=1; d<=daysInMonth; d++) { 
+        const dStrIso = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; 
+        const dStrBr = `${String(d).padStart(2,'0')}/${String(month+1).padStart(2,'0')}/${year}`; 
+        
+        const trainedMatches = state.fullHistory.filter(h => h.date && (h.date.includes(dStrIso) || h.date.includes(dStrBr))); 
+        const trained = trainedMatches.length > 0 ? trainedMatches[trainedMatches.length - 1] : null;
+
+        const tag = trained && trained.workout ? trained.workout.replace('Treino ', 'T') : ''; 
+        
+        html += `<div class="aspect-square flex flex-col items-center justify-center rounded-lg border border-slate-800 ${trained ? 'bg-lime-450 text-black font-black shadow-neon' : 'text-slate-600'}"> 
+          <span class="text-[10px] font-bold opacity-80">${d}</span> 
+          <span class="text-[9px] mt-1">${tag}</span> 
+        </div>`; 
+      } 
+      document.getElementById('calendar-days').innerHTML = html; 
+    }
+
+    function renderHistory() { 
+      const container = document.getElementById('history-list');
+      if (!state.measurements || state.measurements.length === 0) {
+         container.innerHTML = `<div class="text-xs text-slate-500 italic text-center mt-4">Nenhuma medida registrada.</div>`; return;
+      }
+      container.innerHTML = [...state.measurements].reverse().map(m => {
+         let dStr = m.date; if (dStr.includes('T')) dStr = new Date(m.date).toLocaleDateString('pt-BR');
+         return `<div class="flex justify-between items-center p-4 bg-slate-900 border border-slate-800 rounded-lg text-sm mb-2 shadow-md">
+                   <span class="text-slate-400 font-mono text-xs">${dStr}</span>
+                   <div class="text-right">
+                     <span class="text-white font-black block">${m.weight} kg</span>
+                     <span class="text-[10px] text-lime-450 font-bold block uppercase mt-1">Gordura: ${m.bodyFat || '--'}%</span>
+                   </div>
+                 </div>`;
+      }).join(''); 
+    }
+
+    function enviarMedidas() {
+      const w = document.getElementById('input-new-weight').value;
+      const f = document.getElementById('input-new-fat').value;
+
+      if(!w) { alert('Digite pelo menos o seu peso atual!'); return; }
+
+      setLoading(true);
+      const todayIso = new Date().toISOString().split('T');
+      
+      const payload = {
+         action: "salvarMedidas",
+         data: { date: todayIso, weight: w, bodyFat: f || "" }
+      };
+
+      fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) })
+        .then(res => res.json())
+        .then(res => {
+           if(res.status === 'erro') throw new Error(res.msg);
+
+           state.measurements.push({ id: Date.now(), date: todayIso, weight: w, bodyFat: f });
+           document.getElementById('input-new-weight').value = '';
+           document.getElementById('input-new-fat').value = '';
+
+           renderKPIs(); renderChart(); renderHistory();
+           setLoading(false);
+           alert("Sua avaliação foi salva na planilha com sucesso!");
+        }).catch(err => {
+           setLoading(false);
+           alert("Você está offline. Conecte-se à internet para enviar medidas.");
+        });
+    }
+
+    function handleAction(key, sec, label, color, exId, exName) { 
+      initAudio(); 
+      state.workoutProgress[key] = true; 
+      document.getElementById(`row-${key}`).classList.add('row-completed'); 
+      
+      if(exId) { 
+        const todayIso = new Date().toISOString().split('T');
+        const todayStr = new Date().toLocaleDateString('pt-BR');
+        
+        state.lastDates[exId] = todayStr;
+        
+        if(!state.pendingLogs.find(l => l.exId === exId)) {
+            state.pendingLogs.push({exId: exId, exName: exName, workoutName: state.selectedDay});
+            state.fullHistory.push({ date: todayIso, workout: state.selectedDay });
+        }
+      } 
+      saveLocal(); 
+      
+      if (sec <= 0) { playBeep('end'); return; } 
+      
+      playBeep('start'); 
+      timerWorker.postMessage({cmd: 'stop'}); 
+      document.getElementById('timer-modal').classList.remove('hidden'); 
+      document.getElementById('timer-display').innerText = formatTime(sec); 
+      timerWorker.postMessage({cmd: 'start', sec: sec}); 
+    } 
+
+    function handleTimerComplete() { 
+      timerWorker.postMessage({cmd: 'stop'}); 
+      document.getElementById('timer-modal').classList.add('hidden'); 
+      playBeep('end'); 
+    } 
+
+    function finalizarTreino() {
+      confetti(); 
+      
+      // Se houver coisas não enviadas, enviamos agora de forma visível
+      if(state.pendingLogs.length > 0) {
+        setLoading(true);
+        
+        state.pendingLogs.forEach(log => {
+           log.weightsArray = state.lastWeights[log.exId] || [];
+        });
+        
+        fetch(API_URL, { method: 'POST', body: JSON.stringify({logs: state.pendingLogs}) })
+        .then(res => res.json())
+        .then((res) => { 
+          if(res.status === 'erro') throw new Error(res.msg);
+          
+          state.pendingLogs = []; 
+          state.workoutProgress = {}; // Limpa as bolinhas verdes
+          state.selectedDay = determineNextWorkout(); // Avança pro próximo treino
+          saveLocal(); 
+          
+          setLoading(false); alert("Treino e Pesos Concluídos!"); renderAllViews();
+        }).catch(err => {
+          setLoading(false); alert("Offline. Seus dados estão seguros e o App enviará sozinho em breve.");
+        });
+      } else {
+        // Se a "sincronização fantasma" já tinha agido antes de você apertar o botão
+        state.workoutProgress = {}; 
+        state.selectedDay = determineNextWorkout();
+        saveLocal(); 
+        renderAllViews();
+      }
+    }
+
+    function formatTime(s) { const m = Math.floor(s/60).toString().padStart(2,'0'), r = (s%60).toString().padStart(2,'0'); return `${m}:${r}`; } 
+    function setLoading(v) { document.getElementById('loading-indicator').classList.toggle('hidden', !v); } 
+    
+    function renderKPIs() { if(!state.measurements.length) return; const last = state.measurements[state.measurements.length-1]; document.getElementById('kpi-weight').innerText = last.weight + ' kg'; document.getElementById('kpi-fat').innerText = (last.bodyFat || '--') + ' %'; } 
+    function renderChart() { 
+      const ctx = document.getElementById('evolutionChart').getContext('2d'); 
+      if(window.myChart) window.myChart.destroy();
+      window.myChart = new Chart(ctx, { type: 'line', data: { labels: state.measurements.map(m=>{let d = m.date; if(d.includes('T')) d = new Date(m.date).toLocaleDateString('pt-BR'); return d;}), datasets: [{label:'Peso', data:state.measurements.map(m=>m.weight), borderColor:'#84cc16', backgroundColor:'rgba(132, 204, 22, 0.1)', fill:true, tension:0.4}] }, options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}} }); 
+    } 
+  </script> 
+</body> 
+</html>
